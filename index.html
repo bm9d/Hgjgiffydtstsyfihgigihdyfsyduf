@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>محول الماركداون إلى HTML</title>
+  
+  <!-- استيراد Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet" crossorigin="anonymous">
+  
+  <!-- أيقونات Bootstrap -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
+  <!-- خط Cairo من Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- مكتبة Marked.js لتحويل Markdown إلى HTML -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
+  <style>
+    /* الخط الأساسي */
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: linear-gradient(135deg, #faf3e7, #eef7f6);
+      margin: 0;
+      padding: 0;
+      color: #2c3e50;
+    }
+
+    /* حاوية الصفحة الرئيسية */
+    .container {
+      margin-top: 50px;
+      max-width: 1000px;
+      background-color: #ffffff;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    /* عنوان الصفحة */
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #2e4053;
+      font-weight: 600;
+    }
+
+    label {
+      font-weight: 600;
+      color: #555;
+    }
+
+    /* تنسيق خاص للأزرار */
+    .btn-custom {
+      border-radius: 50px;
+      padding: 12px 20px;
+      font-size: 1.1em;
+      transition: all 0.3s ease;
+    }
+    .btn-custom:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(0, 123, 255, 0.2);
+    }
+
+    /* حقل النص ثابت الحجم وكبير */
+    textarea {
+      border-radius: 15px;
+      /* تم تعديل السطر أدناه للسماح بالتمرير بدلاً من إخفائه */
+      overflow-y: auto;
+      resize: none;
+      height: 500px;
+    }
+
+    /* منطقة عرض النتيجة */
+    #result {
+      margin-top: 30px;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 15px;
+      border: 1px solid #ddd;
+      min-height: 200px;
+      font-size: 14px;
+      position: relative; /* لإظهار أي عنصر ثابت أو مطلق فوقه */
+      direction: rtl; /* الإبقاء على الاتجاه العام RTL */
+    }
+
+    /* تنسيقات داخل النتيجة */
+    #result h1 { color: #2e4053; }
+    #result h2 { color: #2874a6; }
+    #result h3 { color: #148f77; }
+    #result h4 { color: #9b59b6; }
+    #result h5, #result h6 { color: #b03a2e; }
+    #result p, #result li, #result td, #result th { color: #2c3e50; }
+    #result strong { color: #6c3483; font-weight: bold; }
+    #result em { color: #d35400; font-style: italic; }
+    #result pre,
+    #result code {
+      background: #e8f0fe;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: #34495e;
+    }
+    /* لإبقاء الجدول بالاتجاه الأصلي (LTR) وعدم عكس الأعمدة */
+    #result table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      direction: ltr; /* حتى لا يُعكس ترتيب الأعمدة */
+    }
+    #result table th, #result table td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left; /* تثبيت المحاذاة لليسار */
+    }
+    #result table thead { background-color: #f2f2f2; }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; }
+    }
+
+    /* الأزرار العائمة */
+    .floating-buttons {
+      position: fixed;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 9999;
+    }
+
+    /* العلامة المائية الثابتة */
+    #watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.2;
+      color: #000;
+      z-index: -1; /* كي لا تحجب المحتوى */
+      pointer-events: none; /* كي لا تؤثر على التمرير */
+      text-align: center;
+      display: none; /* افتراضياً مخفي */
+    }
+  </style>
+</head>
+<body>
+
+<!-- أزرار عائمة على يمين الشاشة -->
+<div class="floating-buttons">
+  <button class="btn btn-success btn-custom" onclick="convertMarkdown()" title="تحويل الماركداون">
+    <i class="bi bi-arrow-left-right"></i>
+  </button>
+  <button class="btn btn-dark btn-custom" onclick="printResult()" title="طباعة / PDF">
+    <i class="bi bi-printer-fill"></i>
+  </button>
+  <button class="btn btn-info btn-custom text-white" onclick="toggleScroll()" title="أعلى/أسفل">
+    <i class="bi bi-arrow-up-down"></i>
+  </button>
+</div>
+
+<div class="container">
+  <h1><i class="bi bi-file-earmark-code-fill"></i> محول الماركداون إلى HTML</h1>
+  
+  <!-- حقل إدخال الماركداون -->
+  <div class="mb-3">
+    <label for="markdown-input" class="form-label">أدخل نص الماركداون هنا:</label>
+    <textarea class="form-control" id="markdown-input" placeholder="اكتب نص الماركداون هنا..."></textarea>
+  </div>
+
+  <!-- حقول العلامة المائية -->
+  <div class="mb-3">
+    <label for="watermark-text" class="form-label">العلامة المائية (اختياري):</label>
+    <input type="text" id="watermark-text" class="form-control" placeholder="اكتب العلامة المائية..." oninput="updateWatermark()" />
+  </div>
+  <div class="mb-3">
+    <label for="watermark-size" class="form-label">حجم العلامة المائية (اختياري):</label>
+    <input type="number" id="watermark-size" class="form-control" placeholder="اكتب الحجم (px)..." oninput="updateWatermark()" />
+  </div>
+  <!-- الحقل الجديد لعدد العلامات المائية -->
+  <div class="mb-3">
+    <label for="watermark-count" class="form-label">عدد العلامات المائية (اختياري):</label>
+    <input type="number" id="watermark-count" class="form-control" placeholder="اكتب عدد العلامات..." oninput="updateWatermark()" />
+  </div>
+  <div class="mb-3 form-check">
+    <input type="checkbox" class="form-check-input" id="enable-watermark" onchange="updateWatermark()">
+    <label class="form-check-label" for="enable-watermark">تفعيل العلامة المائية</label>
+  </div>
+  
+  <!-- أزرار التحكم -->
+  <div class="row g-2">
+    <div class="col-md-4">
+      <button class="btn btn-info w-100 btn-custom text-white" onclick="copyResult()">
+        <i class="bi bi-files"></i> نسخ النتيجة (HTML)
+      </button>
+    </div>
+    <div class="col-md-4">
+      <button class="btn btn-danger w-100 btn-custom" onclick="deleteResult()">
+        <i class="bi bi-trash"></i> حذف النتيجة
+      </button>
+    </div>
+    <div class="col-md-4">
+      <button class="btn btn-primary w-100 btn-custom" onclick="convertMarkdown()">
+        <i class="bi bi-arrow-left-right"></i> تحويل
+      </button>
+    </div>
+  </div>
+  
+  <!-- زر نسخ الكود البرمجي للنتيجة فقط -->
+  <div class="row g-2 mt-2">
+    <div class="col-md-12">
+      <button class="btn btn-secondary w-100 btn-custom" onclick="copyResultCode()">
+        <i class="bi bi-clipboard"></i> نسخ كود النتيجة
+      </button>
+    </div>
+  </div>
+  
+  <!-- منطقة عرض النتيجة -->
+  <div id="result"></div>
+</div>
+
+<!-- العنصر الخاص بالعلامة المائية الثابتة في الخلفية -->
+<div id="watermark"></div>
+
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+
+<script>
+  let currentDirection = 'rtl';
+
+  // دالة جديدة: تحدد اتجاه النص بناءً على أول حرف أبجدي (عربي أو لاتيني)
+  function detectFirstCharDirection(text) {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      // لو السطر فارغ أو كله مسافات/رموز، نجعله RTL افتراضياً
+      return 'rtl';
+    }
+    // نتجاوز الأرقام والرموز حتى نصل لأول حرف
+    let i = 0;
+    while (i < trimmed.length && !/[a-zA-Z\u0600-\u06FF]/.test(trimmed[i])) {
+      i++;
+    }
+    // لو لم نجد أي حرف أبجدي
+    if (i === trimmed.length) {
+      return 'rtl'; // افتراضي
+    }
+    const firstChar = trimmed[i];
+    return firstChar.match(/[\u0600-\u06FF]/) ? 'rtl' : 'ltr';
+  }
+
+  // دالة وسيطة لإضافة ميزة التوسيط عند استخدام @...@
+  function replaceCenterTags(md) {
+    // أي نص بين رمزين @...@ يتحول إلى فقرة بمركز الصفحة
+    return md.replace(/@([^@]+)@/g, (match, innerText) => {
+      // يفضّل إضافة سطر قبله وبعده لتجنّب مشكلات مع بعض التنسيقات
+      return "\n<p style=\"text-align:center;\">" + innerText.trim() + "</p>\n";
+    });
+  }
+
+  function convertMarkdown() {
+    // جلب نص الماركداون الأصلي
+    let markdownText = document.getElementById('markdown-input').value;
+
+    // 1) استبدال الصيغ الخاصة بالتوسيط قبل التحويل
+    markdownText = replaceCenterTags(markdownText);
+
+    // 2) تحويل النص بعد الاستبدال إلى HTML عبر Marked
+    const rawHTML = marked.parse(markdownText);
+    
+    // 3) نحلّل الـHTML في كائن DOM:
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(rawHTML, 'text/html');
+    
+    // 4) نطبّق اكتشاف الاتجاه على العناصر النصيّة الشائعة 
+    //    (مع استثناء td و th حتى لا نعكس الجدول)
+    const elements = doc.body.querySelectorAll('p, li, blockquote, h1, h2, h3, h4, h5, h6');
+    elements.forEach(elem => {
+      const dir = detectFirstCharDirection(elem.textContent);
+      elem.style.direction = dir;
+      // ضبط المحاذاة بناءً على الاتجاه
+      elem.style.textAlign = (dir === 'rtl') ? 'right' : 'left';
+    });
+
+    // 5) وضع المحتوى المعدّل في ديف النتيجة
+    document.getElementById('result').innerHTML = doc.body.innerHTML;
+  }
+
+  // وظيفة لنسخ محتوى النتيجة (الكود البرمجي للعنصر فقط)
+  function copyResultCode() {
+    const resultDiv = document.getElementById('result');
+    const codeText = resultDiv.outerHTML;
+    const tempTextarea = document.createElement('textarea');
+    tempTextarea.value = codeText;
+    document.body.appendChild(tempTextarea);
+    tempTextarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(tempTextarea);
+    alert("تم نسخ كود النتيجة بنجاح!");
+  }
+
+  // وظيفة لنسخ محتوى النتيجة (الـ HTML فقط)
+  function copyResult() {
+    const resultDiv = document.getElementById('result');
+    const tempTextarea = document.createElement('textarea');
+    tempTextarea.value = resultDiv.innerHTML;
+    document.body.appendChild(tempTextarea);
+    tempTextarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(tempTextarea);
+    alert("تم نسخ النتيجة (HTML) بنجاح!");
+  }
+
+  function deleteResult() {
+    document.getElementById('result').innerHTML = "";
+  }
+
+  // تحديث العلامة المائية
+  function updateWatermark() {
+    const watermarkText = document.getElementById('watermark-text').value;
+    const watermarkSize = document.getElementById('watermark-size').value || 50;
+    const watermarkCount = parseInt(document.getElementById('watermark-count').value) || 1;
+    const enabled = document.getElementById('enable-watermark').checked;
+    const watermarkDiv = document.getElementById('watermark');
+
+    if (enabled && watermarkText.trim() !== '') {
+      watermarkDiv.style.display = 'block';
+      watermarkDiv.innerHTML = ''; // مسح المحتوى القديم لإنشاء التكرارات الجديدة
+
+      // نجعلها تملأ الصفحة حتى يمكن توزيع التكرارات
+      watermarkDiv.style.position = 'fixed';
+      watermarkDiv.style.top = '0';
+      watermarkDiv.style.left = '0';
+      watermarkDiv.style.width = '100%';
+      watermarkDiv.style.height = '100%';
+      watermarkDiv.style.transform = 'none';
+      watermarkDiv.style.zIndex = '999';
+      watermarkDiv.style.pointerEvents = 'none';
+      watermarkDiv.style.textAlign = 'center';
+      // نجعلها مرنة لتوزيع العلامات
+      watermarkDiv.style.display = 'flex';
+      watermarkDiv.style.flexWrap = 'wrap';
+      watermarkDiv.style.alignItems = 'center';
+      watermarkDiv.style.justifyContent = 'center';
+
+      for (let i = 0; i < watermarkCount; i++) {
+        const span = document.createElement('div');
+        span.textContent = watermarkText;
+        span.style.fontSize = watermarkSize + 'px';
+        span.style.color = 'rgba(0,0,0,0.2)';
+        span.style.transform = 'rotate(-30deg)';
+        span.style.margin = '10px';
+        span.style.pointerEvents = 'none';
+        watermarkDiv.appendChild(span);
+      }
+    } else {
+      watermarkDiv.style.display = 'none';
+    }
+  }
+
+  function printResult() {
+    const resultDivContent = document.getElementById('result').innerHTML;
+    const printWindow = window.open('about:blank', '_blank', 'width=800,height=600');
+    const langAttr = (currentDirection === 'rtl') ? 'ar' : 'en';
+
+    // نجلب بيانات العلامة المائية
+    const watermarkText = document.getElementById('watermark-text').value;
+    const watermarkSize = document.getElementById('watermark-size').value || 50;
+    const watermarkCount = parseInt(document.getElementById('watermark-count').value) || 1;
+    const enabled = document.getElementById('enable-watermark').checked;
+
+    // ملاحظة: تم تغيير الخلفية إلى الأبيض بدلاً من التدرج
+    const styleContent = `
+      @media print {
+        body { -webkit-print-color-adjust: exact; }
+      }
+      body {
+        font-family: 'Cairo', sans-serif;
+        background-color: #fff; /* جعلنا الخلفية بيضاء */
+        margin: 0;
+        padding: 0;
+        color: #2c3e50;
+      }
+      #printResult { padding: 20px; }
+      #printResult h1 { color: #2e4053; }
+      #printResult h2 { color: #2874a6; }
+      #printResult h3 { color: #148f77; }
+      #printResult h4 { color: #9b59b6; }
+      #printResult h5, #printResult h6 { color: #b03a2e; }
+      #printResult p, #printResult li, #printResult td, #printResult th { color: #2c3e50; }
+      #printResult strong { color: #6c3483; font-weight: bold; }
+      #printResult em { color: #d35400; font-style: italic; }
+      #printResult pre,
+      #printResult code {
+        background: #e8f0fe;
+        padding: 4px 8px;
+        border-radius: 4px;
+        color: #34495e;
+      }
+      #printResult table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        direction: ltr; /* ضمان عدم عكس الأعمدة أثناء الطباعة */
+      }
+      #printResult table th, #printResult table td {
+        border: 1px solid #ccc;
+        padding: 10px;
+        text-align: left;
+      }
+      #printResult table thead { background-color: #f2f2f2; }
+
+      /* نفس تنسيق العلامة المائية الثابتة */
+      #printWatermark {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        transform: none;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        pointer-events: none;
+        text-align: center;
+        z-index: -1;
+      }
+    `;
+
+    let watermarkHTML = '';
+    if (enabled && watermarkText.trim() !== '') {
+      let items = '';
+      for (let i = 0; i < watermarkCount; i++) {
+        items += `
+          <div style="
+            font-size: ${watermarkSize}px;
+            color: rgba(0,0,0,0.2);
+            transform: rotate(-30deg);
+            margin: 10px;
+            pointer-events: none;">
+            ${watermarkText}
+          </div>
+        `;
+      }
+      watermarkHTML = `<div id="printWatermark" style="opacity:0.2;">${items}</div>`;
+    }
+
+    printWindow.document.write(`
+      <html lang="${langAttr}" dir="${currentDirection}">
+        <head>
+          <meta charset="UTF-8" />
+          <title>طباعة النتيجة</title>
+          <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet" crossorigin="anonymous">
+          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+          <style>${styleContent}</style>
+        </head>
+        <body>
+          ${watermarkHTML}
+          <div id="printResult" style="direction: ${currentDirection};">
+            ${resultDivContent}
+          </div>
+          <script>
+            window.onload = function() { window.print(); }
+          <\/script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
+
+  function toggleScroll() {
+    const currentScroll = window.scrollY;
+    const maxScroll = document.body.scrollHeight - window.innerHeight;
+    const threshold = 200;
+    if (currentScroll < threshold) {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    } else if (currentScroll > (maxScroll - threshold)) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+</script>
+
+window.onload = function () {
+  const urlParams = new URLSearchParams(window.location.search);
+  const markdown = urlParams.get('md');
+  if (markdown) {
+    const decoded = decodeURIComponent(markdown);
+    document.getElementById('markdown-input').value = decoded;
+    convertMarkdown();
+  }
+};
+
+</body>
+</html>
